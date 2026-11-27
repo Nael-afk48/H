@@ -1,0 +1,269 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    function isSignedIn() { return request.auth != null; }
+    function isOwner(userId) { return isSignedIn() && request.auth.uid == userId; }
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+    function isValidAlias(alias) {
+      return alias is string && alias.size() >= 3 && alias.size() <= 20 && alias.matches('^[a-z0-9_]+$');
+    }
+
+    function isValidUserAccount(data, userId) {
+      return data.uid is string && data.uid == userId &&
+             data.email is string && data.email.size() <= 200 &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidProfile(data, userId) {
+      return data.uid is string && data.uid == userId &&
+             isValidAlias(data.alias) &&
+             data.displayName is string && data.displayName.size() <= 60 &&
+             data.bio is string && data.bio.size() <= 120 &&
+             (!('avatarBase64' in data) || (data.avatarBase64 is string && data.avatarBase64.size() <= 120000)) &&
+             data.profileHidden is bool &&
+             data.tagPermission in ['EVERYONE', 'CIRCLES', 'NOBODY'] &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidBlock(data, blockedUid) {
+      return data.blockedUid is string && data.blockedUid == blockedUid &&
+             data.blockedAlias is string && data.blockedAlias.size() >= 1 && data.blockedAlias.size() <= 30 &&
+             data.createdAt is timestamp && data.createdAt <= request.time;
+    }
+
+    function isValidLikedPost(data, postId) {
+      return data.postId is string && data.postId == postId &&
+             data.createdAt is timestamp && data.createdAt <= request.time;
+    }
+
+    function isValidAlert(data, recipientId) {
+      return data.recipientUid is string && data.recipientUid == recipientId &&
+             data.actorUid is string && isValidId(data.actorUid) &&
+             data.actorAlias is string && data.actorAlias.size() >= 1 && data.actorAlias.size() <= 30 &&
+             data.type in ['REACTION', 'COMMENT'] &&
+             data.postId is string && isValidId(data.postId) &&
+             data.postPreview is string && data.postPreview.size() <= 100 &&
+             (!('commentPreview' in data) || (data.commentPreview is string && data.commentPreview.size() <= 120)) &&
+             data.read is bool &&
+             data.createdAt is timestamp && data.createdAt <= request.time;
+    }
+
+    function isValidPost(data) {
+      return data.authorId is string && isValidId(data.authorId) &&
+             isValidAlias(data.authorAlias) &&
+             (!('authorAvatarBase64' in data) || (data.authorAvatarBase64 is string && data.authorAvatarBase64.size() <= 120000)) &&
+             data.authorHidden is bool &&
+             data.circle in ['DAILY_CALM', 'PHOTOGRAPHY', 'BOOKS_MUSIC', 'MAKERS', 'OUTDOORS'] &&
+             data.caption is string && data.caption.size() <= 280 &&
+             (!('imageBase64' in data) || (data.imageBase64 is string && data.imageBase64.size() <= 400000)) &&
+             (data.caption.size() > 0 || ('imageBase64' in data && data.imageBase64.size() > 0)) &&
+             data.reactionCount is int && data.reactionCount >= 0 &&
+             data.commentCount is int && data.commentCount >= 0 &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidReaction(data, userId) {
+      return data.uid is string && data.uid == userId &&
+             isValidAlias(data.alias) &&
+             data.createdAt is timestamp && data.createdAt <= request.time;
+    }
+
+    function isValidComment(data, postId) {
+      return data.postId is string && data.postId == postId &&
+             data.postAuthorId is string && isValidId(data.postAuthorId) &&
+             data.postHidden is bool &&
+             data.authorId is string && isValidId(data.authorId) &&
+             isValidAlias(data.authorAlias) &&
+             (!('authorAvatarBase64' in data) || (data.authorAvatarBase64 is string && data.authorAvatarBase64.size() <= 120000)) &&
+             data.body is string && data.body.size() >= 1 && data.body.size() <= 280 &&
+             data.createdAt is timestamp && data.createdAt <= request.time;
+    }
+
+    function isValidReport(data) {
+      return data.reporterId is string && isValidId(data.reporterId) &&
+             data.targetPostId is string && isValidId(data.targetPostId) &&
+             data.targetAuthorId is string && isValidId(data.targetAuthorId) &&
+             data.reason is string && data.reason.size() >= 3 && data.reason.size() <= 200 &&
+             data.createdAt is timestamp && data.createdAt <= request.time;
+    }
+
+    match /aliases/{alias} {
+      allow get: if isSignedIn() && isValidAlias(alias);
+      allow create: if isSignedIn() &&
+                       isValidAlias(alias) &&
+                       incoming().uid == request.auth.uid &&
+                       incoming().createdAt is timestamp &&
+                       incoming().createdAt <= request.time &&
+                       incoming().keys().hasAll(['uid', 'createdAt']) &&
+                       incoming().keys().hasOnly(['uid', 'createdAt']);
+      allow delete: if isSignedIn() && isValidAlias(alias) && existing().uid == request.auth.uid;
+    }
+
+    match /users/{userId} {
+      allow get: if isOwner(userId) && isValidId(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId) &&
+                       isValidId(userId) &&
+                       isValidUserAccount(incoming(), userId) &&
+                       incoming().keys().hasAll(['uid', 'email', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['uid', 'email', 'createdAt', 'updatedAt']);
+      allow update: if isOwner(userId) &&
+                       isValidId(userId) &&
+                       isValidUserAccount(incoming(), userId) &&
+                       incoming().uid == existing().uid &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['email', 'updatedAt']);
+      allow delete: if isOwner(userId) && isValidId(userId);
+
+      match /blocks/{blockedUid} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) &&
+                         isValidId(blockedUid) &&
+                         blockedUid != userId &&
+                         isValidBlock(incoming(), blockedUid) &&
+                         incoming().keys().hasAll(['blockedUid', 'blockedAlias', 'createdAt']) &&
+                         incoming().keys().hasOnly(['blockedUid', 'blockedAlias', 'createdAt']);
+        allow delete: if isOwner(userId) && isValidId(blockedUid);
+      }
+
+      match /likedPosts/{postId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) &&
+                         isValidId(postId) &&
+                         isValidLikedPost(incoming(), postId) &&
+                         incoming().keys().hasAll(['postId', 'createdAt']) &&
+                         incoming().keys().hasOnly(['postId', 'createdAt']);
+        allow delete: if isOwner(userId) && isValidId(postId);
+      }
+
+      match /alerts/{alertId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isSignedIn() &&
+                         isValidId(alertId) &&
+                         isValidAlert(incoming(), userId) &&
+                         incoming().actorUid == request.auth.uid &&
+                         userId != request.auth.uid &&
+                         incoming().read == false &&
+                         incoming().keys().hasAll(['recipientUid', 'actorUid', 'actorAlias', 'type', 'postId', 'postPreview', 'read', 'createdAt']) &&
+                         incoming().keys().hasOnly(['recipientUid', 'actorUid', 'actorAlias', 'type', 'postId', 'postPreview', 'commentPreview', 'read', 'createdAt']) &&
+                         exists(/databases/$(database)/documents/posts/$(incoming().postId));
+        allow update: if isOwner(userId) &&
+                         isValidId(alertId) &&
+                         isValidAlert(incoming(), userId) &&
+                         incoming().recipientUid == existing().recipientUid &&
+                         incoming().actorUid == existing().actorUid &&
+                         incoming().postId == existing().postId &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['read']);
+        allow delete: if isOwner(userId) && isValidId(alertId);
+      }
+    }
+
+    match /profiles/{userId} {
+      allow get: if isSignedIn() && isValidId(userId) && (request.auth.uid == userId || (resource != null && existing().profileHidden == false));
+      allow list: if isSignedIn() && (existing().uid == request.auth.uid || existing().profileHidden == false);
+      allow create: if isOwner(userId) &&
+                       isValidId(userId) &&
+                       isValidProfile(incoming(), userId) &&
+                       incoming().keys().hasAll(['uid', 'alias', 'displayName', 'bio', 'profileHidden', 'tagPermission', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['uid', 'alias', 'displayName', 'bio', 'avatarBase64', 'profileHidden', 'tagPermission', 'createdAt', 'updatedAt']);
+      allow update: if isOwner(userId) &&
+                       isValidId(userId) &&
+                       isValidProfile(incoming(), userId) &&
+                       incoming().uid == existing().uid &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['alias', 'displayName', 'bio', 'avatarBase64', 'profileHidden', 'tagPermission', 'updatedAt']);
+      allow delete: if isOwner(userId) && isValidId(userId);
+    }
+
+    match /posts/{postId} {
+      allow get: if isSignedIn() && isValidId(postId) && (existing().authorId == request.auth.uid || existing().authorHidden == false);
+      allow list: if isSignedIn() && (existing().authorId == request.auth.uid || existing().authorHidden == false);
+      allow create: if isSignedIn() &&
+                       isValidId(postId) &&
+                       isValidPost(incoming()) &&
+                       incoming().authorId == request.auth.uid &&
+                       incoming().reactionCount == 0 &&
+                       incoming().commentCount == 0 &&
+                       incoming().keys().hasAll(['authorId', 'authorAlias', 'authorHidden', 'circle', 'caption', 'reactionCount', 'commentCount', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['authorId', 'authorAlias', 'authorAvatarBase64', 'authorHidden', 'circle', 'caption', 'imageBase64', 'reactionCount', 'commentCount', 'createdAt', 'updatedAt']);
+      allow update: if isSignedIn() &&
+                       isValidId(postId) &&
+                       isValidPost(incoming()) &&
+                       incoming().authorId == existing().authorId &&
+                       incoming().createdAt == existing().createdAt &&
+                       (
+                         (existing().authorId == request.auth.uid &&
+                          incoming().reactionCount == existing().reactionCount &&
+                          incoming().commentCount == existing().commentCount &&
+                          incoming().diff(existing()).affectedKeys().hasOnly(['caption', 'authorHidden', 'authorAlias', 'authorAvatarBase64', 'updatedAt'])) ||
+                         (incoming().caption == existing().caption &&
+                          incoming().circle == existing().circle &&
+                          incoming().authorHidden == existing().authorHidden &&
+                          incoming().commentCount == existing().commentCount &&
+                          (incoming().reactionCount == existing().reactionCount + 1 ||
+                           (incoming().reactionCount == existing().reactionCount - 1 && incoming().reactionCount >= 0)) &&
+                          incoming().diff(existing()).affectedKeys().hasOnly(['reactionCount', 'updatedAt'])) ||
+                         (incoming().caption == existing().caption &&
+                          incoming().circle == existing().circle &&
+                          incoming().authorHidden == existing().authorHidden &&
+                          incoming().reactionCount == existing().reactionCount &&
+                          (incoming().commentCount == existing().commentCount + 1 ||
+                           (incoming().commentCount == existing().commentCount - 1 && incoming().commentCount >= 0)) &&
+                          incoming().diff(existing()).affectedKeys().hasOnly(['commentCount', 'updatedAt']))
+                       );
+      allow delete: if isSignedIn() && isValidId(postId) && existing().authorId == request.auth.uid;
+
+      match /reactions/{userId} {
+        allow get: if isSignedIn() && isValidId(postId) && isValidId(userId);
+        allow list: if isSignedIn() && existing().uid == request.auth.uid;
+        allow create: if isOwner(userId) &&
+                         isValidId(postId) &&
+                         isValidId(userId) &&
+                         isValidReaction(incoming(), userId) &&
+                         incoming().keys().hasAll(['uid', 'alias', 'createdAt']) &&
+                         incoming().keys().hasOnly(['uid', 'alias', 'createdAt']) &&
+                         exists(/databases/$(database)/documents/posts/$(postId));
+        allow delete: if isOwner(userId) && isValidId(postId) && isValidId(userId);
+      }
+
+      match /comments/{commentId} {
+        allow get: if isSignedIn() && isValidId(postId) && isValidId(commentId) && (existing().postHidden == false || existing().postAuthorId == request.auth.uid || existing().authorId == request.auth.uid);
+        allow list: if isSignedIn() && (existing().postHidden == false || existing().postAuthorId == request.auth.uid || existing().authorId == request.auth.uid);
+        allow create: if isSignedIn() &&
+                         isValidId(postId) &&
+                         isValidId(commentId) &&
+                         isValidComment(incoming(), postId) &&
+                         incoming().authorId == request.auth.uid &&
+                         incoming().keys().hasAll(['postId', 'postAuthorId', 'postHidden', 'authorId', 'authorAlias', 'body', 'createdAt']) &&
+                         incoming().keys().hasOnly(['postId', 'postAuthorId', 'postHidden', 'authorId', 'authorAlias', 'authorAvatarBase64', 'body', 'createdAt']) &&
+                         exists(/databases/$(database)/documents/posts/$(postId)) &&
+                         incoming().postAuthorId == get(/databases/$(database)/documents/posts/$(postId)).data.authorId;
+        allow delete: if isSignedIn() && isValidId(postId) && isValidId(commentId) && (existing().authorId == request.auth.uid || existing().postAuthorId == request.auth.uid);
+      }
+    }
+
+    match /reports/{reportId} {
+      allow get, list: if isSignedIn() && existing().reporterId == request.auth.uid;
+      allow create: if isSignedIn() &&
+                       isValidId(reportId) &&
+                       isValidReport(incoming()) &&
+                       incoming().reporterId == request.auth.uid &&
+                       incoming().keys().hasAll(['reporterId', 'targetPostId', 'targetAuthorId', 'reason', 'createdAt']) &&
+                       incoming().keys().hasOnly(['reporterId', 'targetPostId', 'targetAuthorId', 'reason', 'createdAt']) &&
+                       exists(/databases/$(database)/documents/posts/$(incoming().targetPostId));
+      allow update, delete: if false;
+    }
+  }
+}

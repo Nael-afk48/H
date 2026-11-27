@@ -1,0 +1,6 @@
+{
+  "name": "haven",
+  "description": "A calm, minimalist social sanctuary with chronological circle feeds, photo moments, flat threads, and built-in safety and privacy controls.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

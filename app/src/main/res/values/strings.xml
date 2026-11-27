@@ -1,0 +1,26 @@
+<resources>
+    <string name="app_name">haven</string>
+    <string name="auth_tagline">A quiet space to share moments that matter.</string>
+    <string name="auth_subcopy">Two taps to enter. Chronological circles, calm threads, and built-in privacy.</string>
+    <string name="sign_in_google">Continue with Google</string>
+    <string name="alias_title">Choose your @alias</string>
+    <string name="alias_subtitle">Pick a simple handle so others know who you are in haven.</string>
+    <string name="alias_hint">e.g. maya_woods</string>
+    <string name="alias_rules">3–20 characters: lowercase letters, numbers, or underscores.</string>
+    <string name="alias_continue">Enter haven</string>
+    <string name="nav_feed">Feed</string>
+    <string name="nav_create">Create</string>
+    <string name="nav_alerts">Alerts</string>
+    <string name="nav_profile">Profile</string>
+    <string name="feed_empty_title">All is quiet here</string>
+    <string name="feed_empty_body">Be the first to share a calm moment in this circle.</string>
+    <string name="create_title">Share a moment</string>
+    <string name="create_camera">Take Photo</string>
+    <string name="create_gallery">Choose Photo</string>
+    <string name="create_caption_hint">Write a brief note…</string>
+    <string name="create_publish">Share</string>
+    <string name="thread_title">Thread</string>
+    <string name="thread_reply_hint">Add a thoughtful reply…</string>
+    <string name="alerts_title">Alerts &amp; Safety</string>
+    <string name="privacy_title">Privacy Settings</string>
+</resources>

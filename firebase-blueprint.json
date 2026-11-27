@@ -1,0 +1,182 @@
+{
+  "entities": {
+    "AliasReservation": {
+      "title": "AliasReservation",
+      "description": "Unique lowercase handle reservation for a haven user.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Owner Firebase Auth UID." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp when reserved." }
+      },
+      "required": ["uid", "createdAt"]
+    },
+    "UserAccount": {
+      "title": "UserAccount",
+      "description": "Owner-only private user account record holding PII such as email.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase Auth UID." },
+        "email": { "type": "string", "description": "Google account email address." },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "createdAt", "updatedAt"]
+    },
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Public sanctuary profile with alias, 1-line bio, avatar, and privacy controls.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "alias": { "type": "string", "description": "Lowercase unique handle (3-20 chars)." },
+        "displayName": { "type": "string" },
+        "bio": { "type": "string", "description": "Single-line bio up to 120 chars." },
+        "avatarBase64": { "type": "string", "description": "Optional compressed avatar JPEG." },
+        "profileHidden": { "type": "boolean", "description": "Hides profile and posts from public discovery." },
+        "tagPermission": { "type": "string", "enum": ["EVERYONE", "CIRCLES", "NOBODY"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "alias", "displayName", "bio", "profileHidden", "tagPermission", "createdAt", "updatedAt"]
+    },
+    "BlockedUser": {
+      "title": "BlockedUser",
+      "description": "Record of a blocked user under the current user's safety subcollection.",
+      "type": "object",
+      "properties": {
+        "blockedUid": { "type": "string" },
+        "blockedAlias": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["blockedUid", "blockedAlias", "createdAt"]
+    },
+    "LikedPost": {
+      "title": "LikedPost",
+      "description": "Index of posts reacted to by the user for fast feed state sync.",
+      "type": "object",
+      "properties": {
+        "postId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["postId", "createdAt"]
+    },
+    "UserAlert": {
+      "title": "UserAlert",
+      "description": "Activity alert when someone reacts to or comments on a post.",
+      "type": "object",
+      "properties": {
+        "recipientUid": { "type": "string" },
+        "actorUid": { "type": "string" },
+        "actorAlias": { "type": "string" },
+        "type": { "type": "string", "enum": ["REACTION", "COMMENT"] },
+        "postId": { "type": "string" },
+        "postPreview": { "type": "string" },
+        "commentPreview": { "type": "string" },
+        "read": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["recipientUid", "actorUid", "actorAlias", "type", "postId", "postPreview", "read", "createdAt"]
+    },
+    "Post": {
+      "title": "Post",
+      "description": "A chronological moment posted to a haven circle.",
+      "type": "object",
+      "properties": {
+        "authorId": { "type": "string" },
+        "authorAlias": { "type": "string" },
+        "authorAvatarBase64": { "type": "string" },
+        "authorHidden": { "type": "boolean" },
+        "circle": { "type": "string", "enum": ["DAILY_CALM", "PHOTOGRAPHY", "BOOKS_MUSIC", "MAKERS", "OUTDOORS"] },
+        "caption": { "type": "string" },
+        "imageBase64": { "type": "string" },
+        "reactionCount": { "type": "integer" },
+        "commentCount": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["authorId", "authorAlias", "authorHidden", "circle", "caption", "reactionCount", "commentCount", "createdAt", "updatedAt"]
+    },
+    "PostReaction": {
+      "title": "PostReaction",
+      "description": "Individual user reaction on a post.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "alias": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "alias", "createdAt"]
+    },
+    "PostComment": {
+      "title": "PostComment",
+      "description": "Flat chronological reply in a post's interaction thread.",
+      "type": "object",
+      "properties": {
+        "postId": { "type": "string" },
+        "postAuthorId": { "type": "string" },
+        "postHidden": { "type": "boolean" },
+        "authorId": { "type": "string" },
+        "authorAlias": { "type": "string" },
+        "authorAvatarBase64": { "type": "string" },
+        "body": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["postId", "postAuthorId", "postHidden", "authorId", "authorAlias", "body", "createdAt"]
+    },
+    "ContentReport": {
+      "title": "ContentReport",
+      "description": "User-submitted moderation report for a post.",
+      "type": "object",
+      "properties": {
+        "reporterId": { "type": "string" },
+        "targetPostId": { "type": "string" },
+        "targetAuthorId": { "type": "string" },
+        "reason": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["reporterId", "targetPostId", "targetAuthorId", "reason", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/aliases/{alias}": {
+      "schema": { "$ref": "#/entities/AliasReservation" },
+      "description": "Unique handle reservation registry."
+    },
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserAccount" },
+      "description": "Owner-only private user account document."
+    },
+    "/users/{userId}/blocks/{blockedUid}": {
+      "schema": { "$ref": "#/entities/BlockedUser" },
+      "description": "Users blocked by userId."
+    },
+    "/users/{userId}/likedPosts/{postId}": {
+      "schema": { "$ref": "#/entities/LikedPost" },
+      "description": "Post IDs reacted to by userId."
+    },
+    "/users/{userId}/alerts/{alertId}": {
+      "schema": { "$ref": "#/entities/UserAlert" },
+      "description": "Reaction and comment alerts for userId."
+    },
+    "/profiles/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Public sanctuary profile with privacy visibility controls."
+    },
+    "/posts/{postId}": {
+      "schema": { "$ref": "#/entities/Post" },
+      "description": "Chronological feed moments."
+    },
+    "/posts/{postId}/reactions/{userId}": {
+      "schema": { "$ref": "#/entities/PostReaction" },
+      "description": "Reactions on a post."
+    },
+    "/posts/{postId}/comments/{commentId}": {
+      "schema": { "$ref": "#/entities/PostComment" },
+      "description": "Flat replies in a post thread."
+    },
+    "/reports/{reportId}": {
+      "schema": { "$ref": "#/entities/ContentReport" },
+      "description": "Safety reports filed by users."
+    }
+  }
+}
